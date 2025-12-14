@@ -3,248 +3,256 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Interoperabilitas Bencana DKI Jakarta</title>
+    <title>Sistem Pendukung Keputusan (SPK) Bencana Jakarta</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
         #header {
-            background-color: #1a237e;
-            color: white;
-            padding: 10px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 60px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 1000;
+            background: linear-gradient(90deg, #0d47a1 0%, #1565c0 100%);
+            color: white; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 2000;
         }
 
-        /* LAYOUT UTAMA: PETA & SIDEBAR */
-        #main-content {
-            display: flex;
-            flex: 1;
-            height: calc(100vh - 60px);
+        #main-content { display: flex; flex: 1; position: relative; }
+        #map { flex: 1; height: 100%; z-index: 1; }
+
+        /* SIDEBAR KANAN (KOMENTAR) */
+        #sidebar-right {
+            width: 320px; background: #f8f9fa; border-left: 1px solid #ddd;
+            display: flex; flex-direction: column; z-index: 1001;
+            transition: transform 0.3s ease;
         }
+        .sidebar-hidden { transform: translateX(100%); width: 0 !important; border: none; }
 
-        #map-container {
-            flex: 1;
-            position: relative;
+        /* PANEL ANALISIS (KIRI BAWAH - DRAGGABLE LOOK) */
+        #analysis-card {
+            position: absolute; bottom: 30px; left: 20px; width: 350px;
+            z-index: 1000; background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px); border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2);
+            display: none; transition: all 0.3s ease;
         }
-
-        #map { width: 100%; height: 100%; }
-
-        /* SIDEBAR KOMENTAR */
-        #sidebar {
-            width: 350px;
-            background: #f8f9fa;
-            border-left: 1px solid #ddd;
-            display: flex;
-            flex-direction: column;
-            transition: margin-right 0.3s ease;
-        }
-
-        #comments-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-        }
-
-        .comment-item {
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.9rem;
-        }
-
-        .comment-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            font-weight: bold;
-            font-size: 0.8rem;
-        }
-
-        .instansi-bpn { color: #e65100; }
-        .instansi-pemda { color: #1b5e20; }
-        .instansi-bnpb { color: #b71c1c; }
-
-        /* PANEL ANALISIS */
-        #analysis-panel {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 300px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            z-index: 999;
-            display: none;
-        }
+        
+        .card-header-custom { background: #e3f2fd; color: #0d47a1; border-radius: 12px 12px 0 0; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; cursor: move;}
+        
+        .layer-badge { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; color: white; margin-right: 5px; }
+        .bg-raster { background-color: #d32f2f; }
+        .bg-vector { background-color: #f57c00; }
     </style>
 </head>
 <body>
 
     <div id="header">
         <div class="d-flex align-items-center">
-            <h5 class="m-0 fw-bold">🇮🇩 SIGAP JAKARTA</h5>
-            <span class="ms-3 small opacity-75 d-none d-md-block">Interoperabilitas Data</span>
+            <i class="fa-solid fa-layer-group fa-lg me-3"></i>
+            <div>
+                <h6 class="m-0 fw-bold">SIGAP JAKARTA (Multi-Criteria Analysis)</h6>
+                <small class="opacity-75" style="font-size: 0.75rem;">OGC WPS Implementation: BNPB - BPN - BIG - PEMDA</small>
+            </div>
         </div>
         <div>
-            <button class="btn btn-sm btn-outline-light me-2" onclick="toggleAnalysis()">⚙️ Analisis</button>
-            <button class="btn btn-sm btn-warning text-dark fw-bold" onclick="toggleSidebar()">💬 Diskusi Data</button>
+            <button class="btn btn-sm btn-light text-primary fw-bold me-2 shadow-sm" onclick="toggleAnalysis()">
+                <i class="fa-solid fa-calculator me-1"></i> Analisis SPK
+            </button>
+            <button class="btn btn-sm btn-outline-light" onclick="toggleSidebar()">
+                <i class="fa-regular fa-comments"></i>
+            </button>
         </div>
     </div>
 
     <div id="main-content">
-        
-        <div id="map-container">
-            <div id="map"></div>
-            
-            <div id="analysis-panel">
-                <h6 class="fw-bold border-bottom pb-2">Analisis WPS: Dampak Banjir</h6>
-                <p class="small text-muted">Hitung luas persil BPN terdampak zona BNPB.</p>
-                <div class="d-grid gap-2">
-                    <button onclick="runWPS()" class="btn btn-primary btn-sm">🚀 Jalankan Kalkulasi</button>
+        <div id="map"></div>
+
+        <div id="analysis-card" class="card">
+            <div class="card-header-custom">
+                <span><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Analisis Dampak & Bobot</span>
+                <button type="button" class="btn-close btn-close-sm" onclick="toggleAnalysis()"></button>
+            </div>
+            <div class="card-body p-3">
+                
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted mb-1">1. Input Raster (Bahaya)</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-raster border-0"><i class="fa-solid fa-image text-white"></i></span>
+                        <select class="form-select" id="input-raster">
+                            <option value="bnpb_data:rawan_banjir">BNPB: Rawan Banjir (GeoTIFF)</option>
+                            <option value="bnpb_data:rawan_longsor">BNPB: Rawan Longsor</option>
+                        </select>
+                    </div>
                 </div>
-                <div id="wps-result" class="mt-3 p-2 bg-light border rounded d-none">
-                    <span class="small fw-bold">Hasil:</span> <b class="text-danger">1,245 Ha</b> Terdampak
+
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted mb-1">2. Input Vektor (Aset Terdampak)</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-vector border-0"><i class="fa-solid fa-vector-square text-white"></i></span>
+                        <select class="form-select" id="input-vector">
+                            <option value="bpn_data:persil_tanah">BPN: Persil Tanah (WFS)</option>
+                            <option value="pemda_data:faskes_jakarta">PEMDA: Faskes (WFS)</option>
+                            <option value="big_data:jalan_dki">BIG: Jaringan Jalan (WFS)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-3 p-2 bg-light rounded border">
+                    <label class="form-label small fw-bold text-dark mb-1 d-flex justify-content-between">
+                        <span>3. Bobot Risiko (WPS Weight)</span>
+                        <span id="weight-val" class="text-primary">50%</span>
+                    </label>
+                    <input type="range" class="form-range" id="weight-slider" min="0" max="100" value="50" oninput="updateWeight(this.value)">
+                    <div class="d-flex justify-content-between small text-muted" style="font-size: 0.7rem;">
+                        <span>Fokus Aset</span>
+                        <span>Fokus Bahaya</span>
+                    </div>
+                </div>
+
+                <button onclick="runWPS()" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">
+                    <i class="fa-solid fa-gears me-1"></i> JALANKAN PROSES OGC WPS
+                </button>
+
+                <div id="wps-result" class="mt-3 p-2 bg-white border border-primary rounded d-none text-center">
+                    <div class="spinner-border spinner-border-sm text-primary d-none" id="loading-spinner" role="status"></div>
+                    <div id="result-content">
+                        <h5 class="text-danger fw-bold m-0">1,245 Ha</h5>
+                        <small class="text-muted d-block">Estimasi Luas Terdampak</small>
+                        <small class="text-primary fw-bold mt-1 d-block" style="font-size: 0.7rem;">(Intersection Area Calculated)</small>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div id="sidebar">
-            <div class="p-3 border-bottom bg-white">
-                <h6 class="fw-bold m-0">Catatan Kolaborasi</h6>
-                <small class="text-muted">Riwayat diskusi antar instansi</small>
+        <div id="sidebar-right" class="sidebar-hidden">
+            <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold"><i class="fa-regular fa-comments me-2"></i>Diskusi Instansi</h6>
+                <button class="btn btn-sm btn-light" onclick="toggleSidebar()">✖</button>
             </div>
-            
-            <div id="comments-list">
-                <div class="text-center text-muted mt-5 small" id="empty-msg">Belum ada catatan.</div>
+            <div id="comments-list" class="flex-grow-1 p-3 overflow-auto">
+                <div class="text-center text-muted small mt-5">Belum ada diskusi.</div>
             </div>
-
-            <div class="p-3 bg-white border-top">
+            <div class="p-3 border-top bg-white">
                 <select id="user-role" class="form-select form-select-sm mb-2">
                     <option value="BPN">👤 Admin BPN</option>
                     <option value="BNPB">👤 Admin BNPB</option>
                     <option value="PEMDA">👤 Admin PEMDA</option>
                 </select>
-                <textarea id="comment-text" class="form-control form-control-sm mb-2" rows="2" placeholder="Tulis catatan..."></textarea>
-                <button onclick="addComment()" class="btn btn-success btn-sm w-100">Kirim Catatan</button>
-                <button onclick="clearComments()" class="btn btn-link btn-sm w-100 text-danger text-decoration-none mt-1" style="font-size:0.7rem;">Hapus Semua Riwayat</button>
+                <div class="input-group">
+                    <input type="text" id="comment-text" class="form-control form-control-sm" placeholder="Tulis...">
+                    <button class="btn btn-primary btn-sm" onclick="addComment()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+                <button onclick="clearComments()" class="btn btn-link btn-sm w-100 text-muted mt-1" style="font-size: 0.7rem;">Hapus History</button>
             </div>
         </div>
-
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
-        // --- KONFIGURASI SERVER ---
+        // --- KONFIGURASI ---
+        // Nanti ganti ini hari Senin
         const GEOSERVER_HOST = "https://geoserver-jakarta-wps.up.railway.app"; 
 
-        // --- MAP SETUP ---
-        const map = L.map('map').setView([-6.1754, 106.8272], 12);
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
+        // --- MAP ---
+        const map = L.map('map', { zoomControl: false }).setView([-6.1754, 106.8272], 12);
+        L.control.zoom({ position: 'topright' }).addTo(map);
         
-        // --- DATA LAYERS (Placeholder untuk Senin) ---
-        const bigJalan = L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'big_data:jalan_dki', format: 'image/png', transparent: true });
-        const bpnPersil = L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'bpn_data:persil_tanah', format: 'image/png', transparent: true });
-        const bnpbBanjir = L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'bnpb_data:rawan_banjir', format: 'image/png', transparent: true, opacity: 0.6 });
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
 
-        const overlayMaps = { 
-            "BNPB: Banjir": bnpbBanjir, 
-            "BPN: Persil": bpnPersil, 
-            "BIG: Jalan": bigJalan 
+        // --- LAYER PLACEHOLDERS ---
+        const layers = {
+            bnpb: L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'bnpb_data:rawan_banjir', format: 'image/png', transparent: true, opacity: 0.6 }),
+            bpn: L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'bpn_data:persil_tanah', format: 'image/png', transparent: true }),
+            big: L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'big_data:jalan_dki', format: 'image/png', transparent: true }),
+            pemda: L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'pemda_data:faskes_jakarta', format: 'image/png', transparent: true })
         };
-        L.control.layers({"Basemap": osm}, overlayMaps).addTo(map);
 
-        // --- UI FUNCTIONS ---
+        const overlayMaps = {
+            "<span class='badge bg-danger'>BNPB</span> Rawan Banjir": layers.bnpb,
+            "<span class='badge bg-warning text-dark'>BPN</span> Persil Tanah": layers.bpn,
+            "<span class='badge bg-primary'>BIG</span> Jalan Raya": layers.big,
+            "<span class='badge bg-success'>PEMDA</span> Faskes": layers.pemda
+        };
+
+        L.control.layers(null, overlayMaps, { position: 'topright', collapsed: false }).addTo(map);
+
+        // --- UI LOGIC ---
         function toggleAnalysis() {
-            const p = document.getElementById('analysis-panel');
-            p.style.display = p.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function runWPS() {
-            document.getElementById('wps-result').classList.remove('d-none');
+            const card = document.getElementById('analysis-card');
+            card.style.display = card.style.display === 'none' ? 'block' : 'none';
         }
 
         function toggleSidebar() {
-            const sb = document.getElementById('sidebar');
-            sb.style.display = sb.style.display === 'none' ? 'flex' : 'none';
+            const sb = document.getElementById('sidebar-right');
+            sb.classList.toggle('sidebar-hidden');
         }
 
-        // --- FITUR KOMENTAR PERSISTENT (LOCAL STORAGE) ---
-        
-        // 1. Muat Komentar saat halaman dibuka
-        window.onload = function() {
-            loadComments();
-        };
+        function updateWeight(val) {
+            document.getElementById('weight-val').innerText = val + "%";
+        }
+
+        function runWPS() {
+            const btn = document.querySelector('button[onclick="runWPS()"]');
+            const resBox = document.getElementById('wps-result');
+            const spinner = document.getElementById('loading-spinner');
+            const content = document.getElementById('result-content');
+
+            // UI Loading State
+            btn.disabled = true;
+            resBox.classList.remove('d-none');
+            spinner.classList.remove('d-none');
+            content.style.display = 'none';
+
+            // Simulasi Proses (Nanti diganti fetch XML sungguhan)
+            setTimeout(() => {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                content.style.display = 'block';
+                
+                // Randomize hasil biar terlihat "menghitung"
+                const randomHa = (Math.random() * 500 + 1000).toFixed(2);
+                content.querySelector('h5').innerText = randomHa + " Ha";
+            }, 1500);
+        }
+
+        // --- KOMENTAR (LOCAL STORAGE) ---
+        window.onload = loadComments;
 
         function loadComments() {
-            const storedComments = localStorage.getItem('portal_comments');
-            const list = document.getElementById('comments-list');
-            const emptyMsg = document.getElementById('empty-msg');
-            
-            if (storedComments) {
-                list.innerHTML = storedComments;
-                if(emptyMsg) emptyMsg.style.display = 'none';
-            }
+            const data = localStorage.getItem('chat_history');
+            if(data) document.getElementById('comments-list').innerHTML = data;
         }
 
         function addComment() {
             const role = document.getElementById('user-role').value;
             const text = document.getElementById('comment-text').value;
-            const list = document.getElementById('comments-list');
-            const emptyMsg = document.getElementById('empty-msg');
+            if(!text) return;
 
-            if (text.trim() === "") return;
-
-            // Tentukan warna berdasarkan instansi
-            let colorClass = "text-primary";
-            if(role === 'BPN') colorClass = "instansi-bpn";
-            if(role === 'BNPB') colorClass = "instansi-bnpb";
-            if(role === 'PEMDA') colorClass = "instansi-pemda";
-
-            // Buat HTML Komentar Baru
-            const date = new Date();
-            const time = date.getHours() + ":" + date.getMinutes();
+            let badgeColor = role === 'BPN' ? 'bg-warning text-dark' : (role === 'BNPB' ? 'bg-danger' : 'bg-success');
             
-            const newComment = `
-                <div class="comment-item">
-                    <div class="comment-header">
-                        <span class="${colorClass}">● ${role}</span>
-                        <span class="text-muted fw-normal">${time}</span>
+            const html = `
+                <div class="mb-2 p-2 bg-light rounded border">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="badge ${badgeColor}">${role}</span>
+                        <small class="text-muted" style="font-size:0.7rem">${new Date().toLocaleTimeString().slice(0,5)}</small>
                     </div>
-                    <div class="text-dark">${text}</div>
+                    <div class="small text-dark">${text}</div>
                 </div>
             `;
 
-            // Masukkan ke list
-            if(emptyMsg) emptyMsg.style.display = 'none';
-            list.innerHTML += newComment;
-
-            // SIMPAN KE BROWSER (PERSISTENT)
-            localStorage.setItem('portal_comments', list.innerHTML);
-
-            // Reset form
-            document.getElementById('comment-text').value = "";
-            
-            // Auto scroll ke bawah
+            const list = document.getElementById('comments-list');
+            if(list.innerText.includes('Belum ada')) list.innerHTML = '';
+            list.innerHTML += html;
+            localStorage.setItem('chat_history', list.innerHTML);
+            document.getElementById('comment-text').value = '';
             list.scrollTop = list.scrollHeight;
         }
 
         function clearComments() {
-            if(confirm("Hapus semua catatan diskusi?")) {
-                localStorage.removeItem('portal_comments');
-                document.getElementById('comments-list').innerHTML = '<div class="text-center text-muted mt-5 small" id="empty-msg">Belum ada catatan.</div>';
+            if(confirm('Hapus chat?')) {
+                localStorage.removeItem('chat_history');
+                document.getElementById('comments-list').innerHTML = '<div class="text-center text-muted small mt-5">Belum ada diskusi.</div>';
             }
         }
     </script>
