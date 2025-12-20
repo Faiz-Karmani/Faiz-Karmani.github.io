@@ -200,13 +200,13 @@
     <script src="https://unpkg.com/@turf/turf/turf.min.js"></script> <script>
         // --- KONFIGURASI GEOSERVER (WAJIB DIISI) ---
         // Ganti URL ini dengan URL GeoServer Railway Anda
-        const GS_URL = "https://geoserver-anda.railway.app/geoserver"; 
+        const GS_URL = "https://geoserver-kel4ids-wps-production.up.railway.app/geoserver"; 
         
         // --- DAFTAR 10 LAYER (SESUAIKAN NAMA LAYER DENGAN GEOSERVER ANDA) ---
         const layersDB = [
-            { id: 'batas', name: 'Batas Administrasi', instansi: 'BIG', type: 'Vektor', layerName: 'big_data:batas_administrasi', color: 'black' },
-            { id: 'jalan', name: 'Jaringan Jalan', instansi: 'BIG', type: 'Vektor', layerName: 'big_data:jaringan_jalan', color: 'grey' },
-            { id: 'dem', name: 'DEMNAS (Elevasi)', instansi: 'BIG', type: 'Raster', layerName: 'big_data:demnas_25m', color: '' },
+            { id: 'batas kecamatan', name: 'Batas Administrasi Kecamatan', instansi: 'BIG', type: 'Vektor', layerName: 'BIG:Batas_Provinsi_DKI_fix', color: 'black' },
+            { id: 'jalan', name: 'Jaringan Jalan', instansi: 'BIG', type: 'Vektor', layerName: 'BIG:Jalan_Provinsi_DKI', color: 'grey' },
+            { id: 'dem', name: 'DEMNAS (Elevasi)', instansi: 'BIG', type: 'Raster', layerName: 'BIG:demnas_25m_provinsi_dki', color: '' },
             
             { id: 'banjir_vec', name: 'Kejadian Banjir (Vektor)', instansi: 'BNPB', type: 'Vektor', layerName: 'bnpb_data:kejadian_banjir_vektor', color: 'blue' },
             { id: 'banjir_rst', name: 'Kejadian Banjir (Raster)', instansi: 'BNPB', type: 'Raster', layerName: 'bnpb_data:kejadian_banjir_raster', color: '' },
