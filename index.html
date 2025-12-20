@@ -3,309 +3,448 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Pendukung Keputusan (SPK) Bencana Jakarta</title>
+    <title>Geoportal Jakarta - Koordinasi Satu Peta</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    
     <style>
-        body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; }
+        body, html { height: 100%; margin: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         
         /* HEADER */
-        #header {
-            background: linear-gradient(90deg, #0d47a1 0%, #1565c0 100%);
-            color: white; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 2000;
-        }
-
-        #main-content { display: flex; flex: 1; position: relative; }
-        #map { flex: 1; height: 100%; z-index: 1; }
-
-        /* SIDEBAR CHAT */
-        #sidebar-right {
-            width: 350px; background: #fff; border-left: 1px solid #ddd;
-            display: flex; flex-direction: column; z-index: 1001;
-            transition: transform 0.3s ease; box-shadow: -2px 0 10px rgba(0,0,0,0.05);
-        }
-        .sidebar-hidden { transform: translateX(100%); width: 0 !important; border: none; }
-
-        /* LOGIN OVERLAY (MODAL) */
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(13, 71, 161, 0.9); z-index: 9999;
-            display: flex; justify-content: center; align-items: center;
-            backdrop-filter: blur(5px);
-        }
+        #header { height: 60px; background: #1a237e; color: white; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
         
-        .login-card {
-            background: white; padding: 40px; border-radius: 15px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3); width: 400px; text-align: center;
-        }
+        /* LAYOUT UTAMA */
+        #main-container { height: calc(100% - 60px); display: flex; }
+        
+        /* SIDEBAR NAVIGASI */
+        #sidebar-nav { width: 80px; background: #283593; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
+        .nav-btn { width: 50px; height: 50px; margin-bottom: 20px; border-radius: 10px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer; transition: 0.3s; }
+        .nav-btn:hover, .nav-btn.active { background: #ffca28; color: #1a237e; }
+        .nav-label { font-size: 10px; margin-top: 5px; text-align: center; color: white; }
 
-        /* ANALISIS PANEL */
-        #analysis-card {
-            position: absolute; bottom: 30px; left: 20px; width: 350px;
-            z-index: 1000; background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(5px); border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.2);
-            display: none;
-        }
-        .card-header-custom { background: #e3f2fd; color: #0d47a1; border-radius: 12px 12px 0 0; padding: 10px 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;}
+        /* CONTENT AREA */
+        #content-area { flex: 1; position: relative; background: #f5f5f5; }
+        
+        /* VIEWS (PETA, METADATA, ANALISIS) */
+        .view-section { display: none; height: 100%; width: 100%; }
+        .view-section.active { display: block; }
 
-        /* BADGES */
-        .bg-bpn { background-color: #ff9800; color: #000; }
-        .bg-bnpb { background-color: #d32f2f; color: #fff; }
-        .bg-pemda { background-color: #388e3c; color: #fff; }
-        .bg-big { background-color: #1976d2; color: #fff; }
+        /* PETA */
+        #map { width: 100%; height: 100%; }
+
+        /* METADATA CATALOG STYLE */
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px; overflow-y: auto; height: 100%; }
+        .meta-card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 15px; border-left: 5px solid #1a237e; }
+        .meta-card h5 { font-size: 16px; font-weight: bold; margin-bottom: 10px; }
+        .meta-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; color: white; margin-right: 5px;}
+        
+        /* ANALISIS STYLE */
+        .analysis-container { display: flex; height: 100%; }
+        .analysis-sidebar { width: 350px; background: white; padding: 20px; border-right: 1px solid #ddd; overflow-y: auto; }
+        .analysis-map { flex: 1; background: #eee; position: relative; }
+        .result-box { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 15px; border-radius: 5px; margin-top: 20px; }
+
+        /* LOGIN OVERLAY */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(26, 35, 126, 0.95); z-index: 9999; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: white; padding: 40px; border-radius: 10px; width: 350px; text-align: center; }
     </style>
 </head>
 <body>
 
     <div id="login-overlay">
-        <div class="login-card">
-            <div class="mb-4">
-                <i class="fa-solid fa-shield-halved fa-4x text-primary mb-3"></i>
-                <h4 class="fw-bold">Login Portal SPK</h4>
-                <p class="text-muted small">Silakan masuk menggunakan akun instansi.</p>
+        <div class="login-box">
+            <h4>🔐 Masuk Geoportal</h4>
+            <p class="text-muted small">Koordinasi Satu Peta Jakarta</p>
+            
+            <div class="mb-3 text-start">
+                <label class="form-label small fw-bold">Pilih Instansi:</label>
+                <select id="user-role" class="form-select">
+                    <option value="BIG">Admin BIG</option>
+                    <option value="BNPB">Admin BNPB</option>
+                    <option value="BPN">Admin ATR/BPN</option>
+                    <option value="PEMDA">Admin PEMDA</option>
+                </select>
             </div>
-            <div class="form-floating mb-3">
-                <input type="text" class="form-control" id="username" placeholder="Username">
-                <label for="username">Username</label>
+            
+            <div class="mb-4 text-start">
+                <label class="form-label small fw-bold">Password:</label>
+                <input type="password" id="user-pass" class="form-control" placeholder="Masukkan password...">
             </div>
-            <div class="form-floating mb-3">
-                <input type="password" class="form-control" id="password" placeholder="Password">
-                <label for="password">Password</label>
-            </div>
-            <button onclick="login()" class="btn btn-primary w-100 py-2 fw-bold">MASUK SISTEM</button>
-            <div class="mt-3 text-start small bg-light p-2 rounded border">
-                <i class="fa-solid fa-circle-info me-1"></i> <b>Akun Demo:</b><br>
-                User: <code>bpn</code>, <code>bnpb</code>, <code>pemda</code>, <code>big</code><br>
-                Pass: <code>123</code>
-            </div>
+
+            <button onclick="login()" class="btn btn-primary w-100 fw-bold">MASUK</button>
+            
+            <p id="login-error" class="text-danger small mt-3 fw-bold" style="display:none;">
+                <i class="fa-solid fa-circle-exclamation"></i> Password Salah!
+            </p>
         </div>
     </div>
 
-    <div id="app-interface" style="display:none; height:100%; flex-direction:column;">
-        
-        <div id="header">
-            <div class="d-flex align-items-center">
-                <i class="fa-solid fa-layer-group fa-lg me-3"></i>
-                <div>
-                    <h6 class="m-0 fw-bold">SIGAP JAKARTA (Multi-Criteria Analysis)</h6>
-                    <small class="opacity-75" style="font-size: 0.75rem;">Interoperabilitas Data Geospasial</small>
-                </div>
-            </div>
-            <div class="d-flex align-items-center">
-                <div class="me-3 text-end d-none d-md-block">
-                    <div class="fw-bold" id="user-display-name">Guest</div>
-                    <div class="badge bg-light text-dark" id="user-display-role" style="font-size: 0.6rem;">UNKNOWN</div>
-                </div>
-                <button class="btn btn-sm btn-light text-primary fw-bold me-2 shadow-sm" onclick="toggleAnalysis()">
-                    <i class="fa-solid fa-calculator me-1"></i> SPK
-                </button>
-                <button class="btn btn-sm btn-outline-light me-2" onclick="toggleSidebar()">
-                    <i class="fa-regular fa-comments"></i>
-                </button>
-                <button class="btn btn-sm btn-danger" onclick="logout()" title="Logout">
-                    <i class="fa-solid fa-power-off"></i>
-                </button>
+    <div id="header">
+        <div class="d-flex align-items-center">
+            <i class="fa-solid fa-map-location-dot fa-xl me-3"></i>
+            <div>
+                <h6 class="m-0 fw-bold">GEOPORTAL JAKARTA</h6>
+                <small style="font-size: 11px;">Koordinasi Satu Peta: BIG - BNPB - BPN - PEMDA</small>
             </div>
         </div>
+        <div class="d-flex align-items-center">
+            <span id="user-display" class="badge bg-warning text-dark me-3">Guest</span>
+            <button onclick="logout()" class="btn btn-sm btn-outline-light"><i class="fa-solid fa-power-off"></i></button>
+        </div>
+    </div>
 
-        <div id="main-content">
-            <div id="map"></div>
+    <div id="main-container">
+        
+        <div id="sidebar-nav">
+            <button class="nav-btn active" onclick="switchView('map-view')">
+                <i class="fa-solid fa-layer-group fa-lg"></i>
+            </button>
+            <div class="nav-label">Peta Utama</div>
 
-            <div id="analysis-card" class="card">
-                <div class="card-header-custom">
-                    <span><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Analisis Dampak</span>
-                    <button type="button" class="btn-close btn-close-sm" onclick="toggleAnalysis()"></button>
+            <button class="nav-btn" onclick="switchView('metadata-view')">
+                <i class="fa-solid fa-book-open fa-lg"></i>
+            </button>
+            <div class="nav-label">Katalog & DL</div>
+
+            <button class="nav-btn" onclick="switchView('analysis-view')">
+                <i class="fa-solid fa-calculator fa-lg"></i>
+            </button>
+            <div class="nav-label">Analisis</div>
+        </div>
+
+        <div id="content-area">
+            
+            <div id="map-view" class="view-section active">
+                <div id="map"></div>
+            </div>
+
+            <div id="metadata-view" class="view-section">
+                <div class="d-flex h-100">
+                    <div class="catalog-grid" id="catalog-list" style="width: 50%;">
+                        </div>
+                    <div id="bbox-map" style="width: 50%; border-left: 2px solid #ddd;"></div>
                 </div>
-                <div class="card-body p-3">
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted mb-1">1. Input Raster (Bahaya)</label>
-                        <select class="form-select form-select-sm" id="input-raster">
-                            <option value="bnpb_data:rawan_banjir">BNPB: Rawan Banjir (GeoTIFF)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold text-muted mb-1">2. Input Vektor (Aset)</label>
-                        <select class="form-select form-select-sm" id="input-vector">
-                            <option value="bpn_data:persil_tanah">BPN: Persil Tanah (WFS)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3 p-2 bg-light rounded border">
-                        <label class="form-label small fw-bold text-dark mb-1 d-flex justify-content-between">
-                            <span>Bobot Risiko</span> <span id="weight-val" class="text-primary">50%</span>
-                        </label>
-                        <input type="range" class="form-range" id="weight-slider" min="0" max="100" value="50" oninput="document.getElementById('weight-val').innerText = this.value + '%'">
-                    </div>
-                    <button onclick="runWPS()" class="btn btn-primary btn-sm w-100 fw-bold shadow-sm">
-                        <i class="fa-solid fa-gears me-1"></i> JALANKAN WPS
-                    </button>
-                    <div id="wps-result" class="mt-3 p-2 bg-white border border-primary rounded d-none text-center">
-                        <div class="spinner-border spinner-border-sm text-primary d-none" id="loading-spinner" role="status"></div>
-                        <div id="result-content">
-                            <h5 class="text-danger fw-bold m-0">1,245 Ha</h5>
-                            <small class="text-muted">Luas Terdampak</small>
+            </div>
+
+            <div id="analysis-view" class="view-section">
+                <div class="analysis-container">
+                    <div class="analysis-sidebar">
+                        <h5 class="fw-bold border-bottom pb-2 mb-3">🛠️ Pusat Analisis</h5>
+                        
+                        <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+                            <li class="nav-item">
+                                <button class="nav-link active" id="vector-tab" data-bs-toggle="tab" data-bs-target="#vector-pane" type="button">Vektor (Kerugian)</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" id="raster-tab" data-bs-toggle="tab" data-bs-target="#raster-pane" type="button">Raster (Area)</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="vector-pane">
+                                <p class="small text-muted">Hitung persil tanah terdampak banjir & estimasi kerugian.</p>
+                                <div class="mb-2">
+                                    <label class="small fw-bold">Layer Banjir (BNPB):</label>
+                                    <select class="form-select form-select-sm" disabled><option>Kejadian Banjir (Vektor)</option></select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="small fw-bold">Layer Persil (BPN):</label>
+                                    <select class="form-select form-select-sm" disabled><option>Persil Tanah Jakarta</option></select>
+                                </div>
+                                <button onclick="runVectorAnalysis()" class="btn btn-primary w-100 btn-sm">🚀 Hitung Dampak Kerugian</button>
+                                
+                                <div id="vector-result" class="result-box d-none">
+                                    <h6>Hasil Analisis:</h6>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Persil Terdampak:</span> <b class="text-danger" id="res-count">0</b>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span>Luas Terendam:</span> <b class="text-danger" id="res-area">0 Ha</b>
+                                    </div>
+                                    <div class="d-flex justify-content-between border-top pt-2">
+                                        <span>Est. Kerugian:</span> <b class="text-danger" id="res-loss">Rp 0</b>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="raster-pane">
+                                <p class="small text-muted">Kalkulator Raster: Mencari area "Aman" (Tidak Banjir & Tidak Rawan).</p>
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="check-rawan" checked>
+                                    <label class="form-check-label small">Exclude: Zona Rawan (BNPB)</label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="check-kejadian" checked>
+                                    <label class="form-check-label small">Exclude: Kejadian Banjir (BNPB)</label>
+                                </div>
+                                <button onclick="runRasterAnalysis()" class="btn btn-success w-100 btn-sm">🧮 Cari Zona Aman</button>
+
+                                <div id="raster-result" class="result-box d-none">
+                                    <span class="text-success fw-bold">Analisis Selesai!</span>
+                                    <p class="small m-0">Layer baru <b>'Zona_Aman_Jakarta'</b> telah ditambahkan ke peta analisis.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    <div id="analysis-map" class="analysis-map"></div>
                 </div>
             </div>
 
-            <div id="sidebar-right" class="sidebar-hidden">
-                <div class="p-3 bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 fw-bold"><i class="fa-regular fa-comments me-2"></i>Diskusi Instansi</h6>
-                    <button class="btn btn-sm btn-light" onclick="toggleSidebar()">✖</button>
-                </div>
-                <div id="comments-list" class="flex-grow-1 p-3 overflow-auto bg-light">
-                    </div>
-                <div class="p-3 border-top bg-white">
-                    <div class="input-group">
-                        <input type="text" id="comment-text" class="form-control" placeholder="Ketik pesan...">
-                        <button class="btn btn-primary" onclick="addComment()"><i class="fa-solid fa-paper-plane"></i></button>
-                    </div>
-                    <div class="text-center mt-2">
-                        <small class="text-muted" style="font-size: 0.7rem;">Anda login sebagai: <b id="chat-role-display">...</b></small>
-                        <a href="#" onclick="clearComments()" class="text-danger ms-2" style="font-size: 0.7rem; text-decoration: none;">[Hapus Chat]</a>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // --- DATA USER (DATABASE SIMULASI) ---
-        const USERS = {
-            'bpn':   { pass: '123', role: 'Admin BPN',   color: 'bg-bpn' },
-            'bnpb':  { pass: '123', role: 'Admin BNPB',  color: 'bg-bnpb' },
-            'pemda': { pass: '123', role: 'Admin PEMDA', color: 'bg-pemda' },
-            'big':   { pass: '123', role: 'Admin BIG',   color: 'bg-big' }
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/@turf/turf/turf.min.js"></script> <script>
+        // --- KONFIGURASI GEOSERVER (WAJIB DIISI) ---
+        // Ganti URL ini dengan URL GeoServer Railway Anda
+        const GS_URL = "https://geoserver-anda.railway.app/geoserver"; 
+        
+        // --- DAFTAR 10 LAYER (SESUAIKAN NAMA LAYER DENGAN GEOSERVER ANDA) ---
+        const layersDB = [
+            { id: 'batas', name: 'Batas Administrasi', instansi: 'BIG', type: 'Vektor', layerName: 'big_data:batas_administrasi', color: 'black' },
+            { id: 'jalan', name: 'Jaringan Jalan', instansi: 'BIG', type: 'Vektor', layerName: 'big_data:jaringan_jalan', color: 'grey' },
+            { id: 'dem', name: 'DEMNAS (Elevasi)', instansi: 'BIG', type: 'Raster', layerName: 'big_data:demnas_25m', color: '' },
+            
+            { id: 'banjir_vec', name: 'Kejadian Banjir (Vektor)', instansi: 'BNPB', type: 'Vektor', layerName: 'bnpb_data:kejadian_banjir_vektor', color: 'blue' },
+            { id: 'banjir_rst', name: 'Kejadian Banjir (Raster)', instansi: 'BNPB', type: 'Raster', layerName: 'bnpb_data:kejadian_banjir_raster', color: '' },
+            { id: 'rawan_vec', name: 'Rawan Banjir (Vektor)', instansi: 'BNPB', type: 'Vektor', layerName: 'bnpb_data:rawan_banjir_vektor', color: 'orange' },
+            { id: 'rawan_rst', name: 'Rawan Banjir (Raster)', instansi: 'BNPB', type: 'Raster', layerName: 'bnpb_data:rawan_banjir_raster', color: '' },
+            
+            { id: 'persil', name: 'Persil Tanah', instansi: 'BPN', type: 'Vektor', layerName: 'bpn_data:persil_tanah', color: 'gold' },
+            
+            { id: 'faskes', name: 'Layanan Kesehatan', instansi: 'PEMDA', type: 'Vektor (Point)', layerName: 'pemda_data:layanan_kesehatan', color: 'red' },
+            { id: 'kantor', name: 'Kantor Administrasi', instansi: 'PEMDA', type: 'Vektor (Point)', layerName: 'pemda_data:kantor_administrasi', color: 'green' }
+        ];
+
+        let map, analysisMap, bboxMap;
+        let activeLayers = {};
+
+        // --- 1. INISIALISASI SAAT LOAD ---
+        window.onload = function() {
+            initMaps();
+            generateMetadataCatalog();
         };
 
-        // --- KONFIGURASI ---
-        const GEOSERVER_HOST = "https://geoserver-jakarta-wps.up.railway.app"; 
-        let CURRENT_USER = null; // Menyimpan data user yg login
+        function initMaps() {
+            // Peta Utama
+            map = L.map('map').setView([-6.1754, 106.8272], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }).addTo(map);
 
-        // --- SISTEM LOGIN ---
-        function checkSession() {
-            const savedUser = localStorage.getItem('spk_user');
-            if(savedUser && USERS[savedUser]) {
-                currentUserInit(savedUser);
-            } else {
-                document.getElementById('login-overlay').style.display = 'flex';
-                document.getElementById('app-interface').style.display = 'none';
-            }
+            // Menambahkan Layer Control & WMS
+            let overlayMaps = {};
+            
+            layersDB.forEach(l => {
+                // Buat Layer WMS
+                const wmsLayer = L.tileLayer.wms(`${GS_URL}/wms`, {
+                    layers: l.layerName,
+                    format: 'image/png',
+                    transparent: true,
+                    attribution: l.instansi
+                });
+
+                // Tambahkan fitur GetFeatureInfo (Klik muncul atribut)
+                if(l.type.includes('Vektor') || l.type.includes('Point')) {
+                    map.on('click', function(e) {
+                        if (map.hasLayer(wmsLayer)) {
+                            getFeatureInfo(e, l.layerName);
+                        }
+                    });
+                }
+
+                // Kelompokkan untuk Layer Control
+                let label = `<b style="color:${getColor(l.instansi)}">[${l.instansi}]</b> ${l.name}`;
+                overlayMaps[label] = wmsLayer;
+                
+                // Simpan referensi
+                activeLayers[l.id] = wmsLayer;
+            });
+
+            L.control.layers({"OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')}, overlayMaps, {collapsed: false}).addTo(map);
+
+            // Peta Analisis & Bbox (Init nanti saat tab dibuka biar render bener)
+            setTimeout(() => {
+                bboxMap = L.map('bbox-map', {zoomControl: false}).setView([-6.1754, 106.8272], 10);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(bboxMap);
+
+                analysisMap = L.map('analysis-map').setView([-6.1754, 106.8272], 11);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(analysisMap);
+            }, 1000);
         }
 
+        // --- 2. FITUR KLIK INFO (METADATA LINK) ---
+        function getFeatureInfo(e, layerName) {
+            const url = `${GS_URL}/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&` +
+                `LAYERS=${layerName}&QUERY_LAYERS=${layerName}&STYLES=&` +
+                `BBOX=${map.getBounds().toBBoxString()}&FEATURE_COUNT=1&` +
+                `HEIGHT=${map.getSize().y}&WIDTH=${map.getSize().x}&` +
+                `FORMAT=image/png&INFO_FORMAT=application/json&SRS=EPSG:4326&` +
+                `X=${Math.round(e.containerPoint.x)}&Y=${Math.round(e.containerPoint.y)}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.features && data.features.length > 0) {
+                        const props = data.features[0].properties;
+                        let content = `<div style="max-height:200px; overflow:auto;"><h6>Info Atribut</h6><table class="table table-sm table-striped" style="font-size:10px;">`;
+                        for (let key in props) {
+                            content += `<tr><td>${key}</td><td>${props[key]}</td></tr>`;
+                        }
+                        content += `</table><a href="#" onclick="switchView('metadata-view')" class="btn btn-xs btn-primary w-100">Lihat Metadata Lengkap</a></div>`;
+                        
+                        L.popup().setLatLng(e.latlng).setContent(content).openOn(map);
+                    }
+                });
+        }
+
+        // --- 3. KATALOG METADATA & DOWNLOAD ---
+        function generateMetadataCatalog() {
+            const container = document.getElementById('catalog-list');
+            let html = '';
+
+            layersDB.forEach(l => {
+                const downloadUrl = l.type === 'Raster' 
+                    ? `${GS_URL}/wcs?service=WCS&version=2.0.1&request=GetCoverage&coverageId=${l.layerName}&format=image/geotiff` // WCS untuk Raster
+                    : `${GS_URL}/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=${l.layerName}&outputFormat=SHAPE-ZIP`; // WFS untuk Vektor
+
+                html += `
+                <div class="meta-card" onmouseover="showBbox('${l.instansi}', '${l.name}')">
+                    <span class="meta-badge" style="background:${getColor(l.instansi)}">${l.instansi}</span>
+                    <span class="meta-badge bg-secondary">${l.type}</span>
+                    <h5 class="mt-2">${l.name}</h5>
+                    <p class="small text-muted mb-2">Layer data geospasial ${l.name} dari instansi ${l.instansi}. Klik untuk melihat cakupan area.</p>
+                    <div class="d-flex gap-2">
+                        <a href="${downloadUrl}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-download"></i> Download Native</a>
+                        <button class="btn btn-sm btn-outline-info" onclick="alert('Link ke XML Metadata ISO-19115')"><i class="fa-solid fa-file-code"></i> XML</button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function showBbox(instansi, name) {
+            // Simulasi BBOX (Karena kita tidak request GetCapabilities BBOX asli di demo ini)
+            // Di sistem asli, bbox diambil dari XML GetCapabilities GeoServer
+            bboxMap.eachLayer((layer) => { if(layer instanceof L.Rectangle) bboxMap.removeLayer(layer); });
+            
+            // Random bbox sekitar Jakarta untuk demo visualisasi
+            const bounds = [[-6.37, 106.60], [-6.08, 107.00]]; 
+            L.rectangle(bounds, {color: getColor(instansi), weight: 2}).addTo(bboxMap).bindPopup(name).openPopup();
+            bboxMap.fitBounds(bounds);
+        }
+
+        // --- 4. ANALISIS VEKTOR & RASTER (SIMULASI LOGIKA) ---
+        
+        function runVectorAnalysis() {
+            // Logika Analisis Vektor (Intersect)
+            // Di sistem nyata (skala besar), ini harusnya pakai WPS (Server-side).
+            // Untuk demo HTML/JS Client-side, kita gunakan Turf.js (tapi dengan data dummy agar browser tidak crash load 100rb persil)
+            
+            const btn = document.querySelector('button[onclick="runVectorAnalysis()"]');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghitung Intersect Geometri...';
+            
+            // Tampilkan layer di peta analisis
+            activeLayers['banjir_vec'].addTo(analysisMap);
+            activeLayers['persil'].addTo(analysisMap);
+
+            setTimeout(() => {
+                document.getElementById('vector-result').classList.remove('d-none');
+                
+                // Angka Simulasi (Karena tidak mungkin fetch semua WFS persil BPN di browser client)
+                // Jika ingin Real: Gunakan `turf.intersect` setelah fetch WFS features
+                const simulasiPersil = 1245;
+                const simulasiLuas = 450.5; // Hektar
+                const simulasiRugi = "Rp 154.200.000.000";
+
+                document.getElementById('res-count').innerText = simulasiPersil + " Bidang";
+                document.getElementById('res-area').innerText = simulasiLuas + " Ha";
+                document.getElementById('res-loss').innerText = simulasiRugi;
+                
+                btn.innerHTML = '🚀 Hitung Dampak Kerugian';
+                alert("Analisis Selesai! Menampilkan overlay Persil (Kuning) diatas Banjir (Biru).");
+            }, 2000);
+        }
+
+        function runRasterAnalysis() {
+            // Logika Raster Calculator (Biasanya butuh WebGL atau Server WPS)
+            // Di sini kita simulasi visualisasi overlay
+            
+            const btn = document.querySelector('button[onclick="runRasterAnalysis()"]');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Raster Calculator Processing...';
+
+            // Bersihkan peta
+            analysisMap.eachLayer((layer) => { if(layer instanceof L.TileLayer.WMS) analysisMap.removeLayer(layer); });
+
+            setTimeout(() => {
+                document.getElementById('raster-result').classList.remove('d-none');
+                
+                // Tampilkan Layer DEMNAS sebagai dasar, lalu overlay layer "Aman" (Simulasi)
+                activeLayers['dem'].addTo(analysisMap);
+                
+                // Kita "hack" visualisasi dengan menampilkan layer banjir tapi di-inverse warnanya (jika pakai SLD)
+                // Untuk demo, kita tampilkan saja area banjir
+                activeLayers['banjir_rst'].addTo(analysisMap);
+                
+                btn.innerHTML = '🧮 Cari Zona Aman';
+                alert("Raster Calculator Selesai. Area yang tidak tertutup layer Biru adalah ZONA AMAN.");
+            }, 2000);
+        }
+
+        // --- 5. SISTEM LOGIN (DENGAN PASSWORD) ---
         function login() {
-            const u = document.getElementById('username').value.toLowerCase();
-            const p = document.getElementById('password').value;
+            const role = document.getElementById('user-role').value;
+            const pass = document.getElementById('user-pass').value;
+            const errorMsg = document.getElementById('login-error');
 
-            if(USERS[u] && USERS[u].pass === p) {
-                localStorage.setItem('spk_user', u);
-                currentUserInit(u);
-            } else {
-                alert("Username atau Password salah!\nCoba: bpn / 123");
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('spk_user');
-            location.reload();
-        }
-
-        function currentUserInit(username) {
-            CURRENT_USER = { username: username, ...USERS[username] };
-            
-            // Update UI
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('app-interface').style.display = 'flex';
-            document.getElementById('user-display-name').innerText = CURRENT_USER.role;
-            document.getElementById('user-display-role').innerText = "Logged in";
-            document.getElementById('chat-role-display').innerText = CURRENT_USER.role;
-            
-            // Render Map (Fix Grey Map issue)
-            setTimeout(() => { map.invalidateSize(); }, 500);
-            loadComments();
-        }
-
-        // --- MAP SETUP ---
-        const map = L.map('map', { zoomControl: false }).setView([-6.1754, 106.8272], 12);
-        L.control.zoom({ position: 'topright' }).addTo(map);
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }).addTo(map);
-
-        // Layer Dummy (Ganti URL Senin nanti)
-        const layers = {
-            bnpb: L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'bnpb_data:rawan_banjir', format: 'image/png', transparent: true, opacity: 0.6 }),
-            bpn: L.tileLayer.wms(`${GEOSERVER_HOST}/geoserver/jakarta_interop/wms`, { layers: 'bpn_data:persil_tanah', format: 'image/png', transparent: true })
-        };
-        L.control.layers(null, {"BNPB: Banjir": layers.bnpb, "BPN: Persil": layers.bpn}, { position: 'topright' }).addTo(map);
-
-        // --- FITUR CHAT ---
-        function addComment() {
-            const text = document.getElementById('comment-text').value;
-            if(!text.trim()) return;
-
-            const newMsg = {
-                role: CURRENT_USER.role,
-                color: CURRENT_USER.color,
-                text: text,
-                time: new Date().toLocaleTimeString().slice(0,5)
+            // --- DATABASE PASSWORD ---
+            const credentials = {
+                'BIG': 'big123',
+                'BNPB': 'bnpb123',
+                'BPN': 'bpn123',
+                'PEMDA': 'pemda123'
             };
 
-            // Simpan ke Array LocalStorage
-            let history = JSON.parse(localStorage.getItem('chat_history_db') || "[]");
-            history.push(newMsg);
-            localStorage.setItem('chat_history_db', JSON.stringify(history));
-
-            renderChat();
-            document.getElementById('comment-text').value = '';
-        }
-
-        function renderChat() {
-            const list = document.getElementById('comments-list');
-            const history = JSON.parse(localStorage.getItem('chat_history_db') || "[]");
-            
-            if(history.length === 0) {
-                list.innerHTML = '<div class="text-center text-muted mt-5 small">Belum ada diskusi.</div>';
-                return;
+            // Validasi Password
+            if (credentials[role] === pass) {
+                // Jika Benar
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('user-display').innerText = role;
+                errorMsg.style.display = 'none';
+            } else {
+                // Jika Salah
+                errorMsg.style.display = 'block';
+                errorMsg.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Password salah untuk ' + role + '!';
             }
+        }
 
-            list.innerHTML = history.map(msg => `
-                <div class="mb-2 p-2 bg-white rounded shadow-sm border-start border-4 ${msg.color.replace('bg-', 'border-')}">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="badge ${msg.color}">${msg.role}</span>
-                        <small class="text-muted" style="font-size:0.65rem">${msg.time}</small>
-                    </div>
-                    <div class="small text-dark">${msg.text}</div>
-                </div>
-            `).join('');
+        function logout() { location.reload(); }
+        
+        function switchView(viewId) {
+            // Hide all
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             
-            list.scrollTop = list.scrollHeight;
+            // Show selected
+            document.getElementById(viewId).classList.add('active');
+            
+            // Highlight nav button (simple logic)
+            if(viewId === 'map-view') document.querySelectorAll('.nav-btn')[0].classList.add('active');
+            if(viewId === 'metadata-view') document.querySelectorAll('.nav-btn')[1].classList.add('active');
+            if(viewId === 'analysis-view') document.querySelectorAll('.nav-btn')[2].classList.add('active');
+
+            // Refresh Map size (Leaflet bug fix when hidden)
+            setTimeout(() => { map.invalidateSize(); analysisMap.invalidateSize(); bboxMap.invalidateSize(); }, 100);
         }
 
-        function loadComments() { renderChat(); }
-        function clearComments() { if(confirm('Hapus chat?')) { localStorage.removeItem('chat_history_db'); renderChat(); }}
-
-        // --- UI TOGGLES ---
-        function toggleAnalysis() { 
-            const c = document.getElementById('analysis-card'); 
-            c.style.display = c.style.display === 'none' ? 'block' : 'none'; 
+        function getColor(instansi) {
+            if(instansi === 'BIG') return '#1976d2';
+            if(instansi === 'BNPB') return '#d32f2f';
+            if(instansi === 'BPN') return '#fbc02d';
+            if(instansi === 'PEMDA') return '#388e3c';
+            return 'grey';
         }
-        function toggleSidebar() { 
-            document.getElementById('sidebar-right').classList.toggle('sidebar-hidden'); 
-        }
-        function runWPS() {
-            const res = document.getElementById('wps-result');
-            const spin = document.getElementById('loading-spinner');
-            const cont = document.getElementById('result-content');
-            res.classList.remove('d-none'); spin.classList.remove('d-none'); cont.style.display = 'none';
-            setTimeout(() => { spin.classList.add('d-none'); cont.style.display = 'block'; }, 1500);
-        }
-
-        // Init Login Check
-        window.onload = checkSession;
     </script>
 </body>
 </html>
