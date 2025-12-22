@@ -22,7 +22,7 @@
         .view-section.active { display: block; }
         #map { width: 100%; height: 100%; background-color: #ffffff !important; }
         
-        /* Metadata & Analysis UI */
+        /* UI Components */
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 20px; overflow-y: auto; height: 100%; }
         .meta-card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 15px; border-left: 5px solid #1a237e; }
         .meta-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; color: white; margin-right: 5px;}
@@ -123,7 +123,7 @@
                                 <button onclick="runRasterAnalysis()" class="btn btn-success w-100 btn-sm">🧮 Cari Zona Aman</button>
                                 <div id="raster-result" class="result-box d-none">
                                     <span class="text-success fw-bold">Analisis Selesai!</span>
-                                    <p class="small m-0">Layer <b>'Zona_Aman'</b> berhasil dibuat.</p>
+                                    <p class="small m-0">Menampilkan layer hasil <b>'Zona_Aman_DKI'</b>.</p>
                                 </div>
                             </div>
                         </div>
@@ -142,7 +142,7 @@
         // --- KONFIGURASI ---
         const GS_URL = "https://geoserver-kel4ids-wps-production.up.railway.app/geoserver"; 
         
-        // --- DATABASE LAYER (Hanya Vektor yang diambil dari sini) ---
+        // --- DATABASE LAYER (Hanya Vektor untuk Main Map) ---
         const layersDB = [
             { id: 'batas_kecamatan', name: 'Batas Administrasi Kecamatan', instansi: 'BIG', type: 'Vektor', layerName: 'BIG:Batas_Provinsi_DKI_fix' },
             { id: 'jalan', name: 'Jaringan Jalan', instansi: 'BIG', type: 'Vektor', layerName: 'BIG:Jalan_Provinsi_DKI' },
@@ -154,7 +154,7 @@
         ];
 
         let map, analysisMap, bboxMap;
-        let activeLayers = {}; // Tempat menyimpan layer WMS GeoServer
+        let activeLayers = {}; 
 
         window.onload = function() { initMaps(); generateMetadataCatalog(); };
 
@@ -164,17 +164,15 @@
             const whiteLayer = L.layerGroup(); 
             const baseMaps = { "OpenStreetMap": osmLayer, "Tanpa Peta (Putih)": whiteLayer };
 
-            // 2. INIT MAP
+            // 2. INIT MAIN MAP
             map = L.map('map', { center: [-6.1754, 106.8272], zoom: 11, layers: [osmLayer] });
 
             // 3. LAYER DARI GEOSERVER (WMS)
-            // Kita loop layer Vektor untuk fitur klik info
             layersDB.forEach(l => {
                 const wmsLayer = L.tileLayer.wms(`${GS_URL}/wms`, {
                     layers: l.layerName, format: 'image/png', transparent: true, attribution: l.instansi, tiled: true
                 });
                 
-                // Tambahkan fitur klik jika Vektor
                 map.on('click', function(e) {
                     if (map.hasLayer(wmsLayer)) getFeatureInfo(e, l.layerName);
                 });
@@ -182,51 +180,28 @@
                 activeLayers[l.id] = wmsLayer;
             });
 
-            // 🔥🔥🔥 4. LAYER RASTER DARI GITHUB (METODE FOLDER) 🔥🔥🔥
-            
-            // A. DEMNAS (Root Folder)
-            const githubDemnas = L.tileLayer('https://faiz-karmani.github.io/petarasterids/{z}/{x}/{y}.png', {
-                tms: false, attribution: 'BIG (Source: GitHub)', minZoom: 10, maxZoom: 15, zIndex: 500
-            });
+            // 4. LAYER RASTER GITHUB
+            const githubDemnas = L.tileLayer('https://faiz-karmani.github.io/petarasterids/{z}/{x}/{y}.png', { tms: false, attribution: 'BIG (GitHub)', minZoom: 10, maxZoom: 15, zIndex: 500 });
+            const githubRawan = L.tileLayer('https://faiz-karmani.github.io/petarasterids/rawan/{z}/{x}/{y}.png', { tms: false, attribution: 'BNPB (GitHub)', minZoom: 10, maxZoom: 15, zIndex: 500 });
+            const githubKejadian = L.tileLayer('https://faiz-karmani.github.io/petarasterids/kejadian/{z}/{x}/{y}.png', { tms: false, attribution: 'BNPB (GitHub)', minZoom: 10, maxZoom: 15, zIndex: 500 });
 
-            // B. RAWAN BANJIR (Folder: rawan)
-            // Perhatikan URL-nya ada kata '/rawan/'
-            const githubRawan = L.tileLayer('https://faiz-karmani.github.io/petarasterids/rawan/{z}/{x}/{y}.png', {
-                tms: false, attribution: 'BNPB (Source: GitHub)', minZoom: 10, maxZoom: 15, zIndex: 500
-            });
-
-            // C. KEJADIAN BANJIR (Folder: kejadian)
-            // Perhatikan URL-nya ada kata '/kejadian/'
-            const githubKejadian = L.tileLayer('https://faiz-karmani.github.io/petarasterids/kejadian/{z}/{x}/{y}.png', {
-                tms: false, attribution: 'BNPB (Source: GitHub)', minZoom: 10, maxZoom: 15, zIndex: 500
-            });
-
-            // 🔥🔥🔥 5. MENYUSUN MENU LAYER (Manual agar Rapi) 🔥🔥🔥
+            // 5. MENU LAYER
             let overlayMaps = {};
-
-            // -- INSTANSI BIG --
-            overlayMaps["<b style='color:#1976d2'>[BIG]</b> DEMNAS (Elevasi)"] = githubDemnas; // Pakai yang GitHub
+            overlayMaps["<b style='color:#1976d2'>[BIG]</b> DEMNAS (Elevasi)"] = githubDemnas;
             overlayMaps["<b style='color:#1976d2'>[BIG]</b> Batas Kecamatan"] = activeLayers['batas_kecamatan'];
             overlayMaps["<b style='color:#1976d2'>[BIG]</b> Jalan"] = activeLayers['jalan'];
-
-            // -- INSTANSI BNPB --
-            overlayMaps["<b style='color:#d32f2f'>[BNPB]</b> Rawan Banjir (Raster)"] = githubRawan; // Pakai yang GitHub
-            overlayMaps["<b style='color:#d32f2f'>[BNPB]</b> Kejadian Banjir (Raster)"] = githubKejadian; // Pakai yang GitHub
+            overlayMaps["<b style='color:#d32f2f'>[BNPB]</b> Rawan Banjir (Raster)"] = githubRawan;
+            overlayMaps["<b style='color:#d32f2f'>[BNPB]</b> Kejadian Banjir (Raster)"] = githubKejadian;
             overlayMaps["<b style='color:#d32f2f'>[BNPB]</b> Kejadian Banjir (Vektor)"] = activeLayers['banjir_vec'];
             overlayMaps["<b style='color:#d32f2f'>[BNPB]</b> Rawan Banjir (Vektor)"] = activeLayers['rawan_vec'];
-
-            // -- INSTANSI BPN & PEMDA --
             overlayMaps["<b style='color:#fbc02d'>[BPN]</b> Persil Tanah"] = activeLayers['persil'];
             overlayMaps["<b style='color:#388e3c'>[Pemda]</b> Faskes"] = activeLayers['faskes'];
             overlayMaps["<b style='color:#388e3c'>[Pemda]</b> Kantor Pemda"] = activeLayers['kantor'];
 
-            // DEFAULT: Nyalakan DEMNAS saat pertama buka
             githubDemnas.addTo(map);
-
-            // Tampilkan Kontrol Layer
             L.control.layers(baseMaps, overlayMaps, {collapsed: false}).addTo(map);
 
-            // 6. SETUP MAP LAIN (Analisis)
+            // 6. SETUP ANALYSIS MAP
             setTimeout(() => {
                 bboxMap = L.map('bbox-map', {zoomControl: false, layers: [L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')]}).setView([-6.1754, 106.8272], 10);
                 analysisMap = L.map('analysis-map', {layers: [L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')]}).setView([-6.1754, 106.8272], 11);
@@ -256,11 +231,15 @@
             container.innerHTML = html;
         }
 
-        // --- ANALISIS ---
+        // --- 🚀 ANALISIS VEKTOR (SIMULASI) ---
         function runVectorAnalysis() {
             const btn = document.querySelector('button[onclick="runVectorAnalysis()"]');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menghitung...';
-            activeLayers['banjir_vec'].addTo(analysisMap); activeLayers['persil'].addTo(analysisMap);
+            
+            // Tampilkan layer di peta analisis
+            activeLayers['banjir_vec'].addTo(analysisMap); 
+            activeLayers['persil'].addTo(analysisMap);
+            
             setTimeout(() => {
                 document.getElementById('vector-result').classList.remove('d-none');
                 document.getElementById('res-count').innerText = "1245 Bidang";
@@ -271,16 +250,36 @@
             }, 2000);
         }
 
+        // --- 🧮 ANALISIS RASTER (LOAD HASIL JADI DARI GEOSERVER) ---
         function runRasterAnalysis() {
             const btn = document.querySelector('button[onclick="runRasterAnalysis()"]');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses Overlay...';
+
+            // 1. Bersihkan peta analisis (buang layer lama)
             analysisMap.eachLayer(l => { if(l instanceof L.TileLayer.WMS) analysisMap.removeLayer(l); });
+
+            // 2. Load Layer "RAHASIA" (Hasil Jadi) dari GeoServer
             setTimeout(() => {
                 document.getElementById('raster-result').classList.remove('d-none');
-                if(activeLayers['batas_kecamatan']) { activeLayers['batas_kecamatan'].setParams({styles:'zona_hijau'}); activeLayers['batas_kecamatan'].addTo(analysisMap); activeLayers['batas_kecamatan'].bringToBack(); }
+                
+                // --- 🔥 GANTI INI DENGAN NAMA LAYER ZONA AMAN DI GEOSERVER ANDA ---
+                const namaLayerZonaAman = "BNPB:Zona_Aman_DKI_Fix"; // <-- GANTI INI
+                
+                const resultLayer = L.tileLayer.wms(`${GS_URL}/wms`, {
+                    layers: namaLayerZonaAman,
+                    format: 'image/png',
+                    transparent: true,
+                    attribution: 'Hasil Analisis',
+                    tiled: true
+                    // styles: 'hijau' (Opsional: jika mau paksa style tertentu)
+                });
+                
+                resultLayer.addTo(analysisMap);
+                resultLayer.bringToFront();
+
                 btn.innerHTML = '🧮 Cari Zona Aman';
-                alert("Analisis Selesai!");
-            }, 1000);
+                alert("Analisis Selesai! Menampilkan Zona Aman.");
+            }, 2000);
         }
 
         // --- AUTH & UTIL ---
